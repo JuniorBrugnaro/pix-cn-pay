@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout PIX - Pushin Pay Kivora</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: #0f1419;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            max-width: 500px;
+            width: 100%;
+            overflow: hidden;
+            animation: slideUp 0.4s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            padding: 32px 24px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+            animation: shine 3s infinite;
+        }
+
+        @keyframes shine {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            z-index: 10;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(90deg);
+        }
+
+        .header h1 {
+            font-size: 42px;
+            font-weight: 800;
+            color: white;
+            margin-bottom: 8px;
+            letter-spacing: -1px;
+            position: relative;
+        }
+
+        .header p {
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 500;
+            position: relative;
+        }
+
+        .content {
+            padding: 32px 24px;
+        }
+
+        .amount-selector {
+            margin-bottom: 32px;
+        }
+
+        .amount-selector h3 {
+            color: #e5e7eb;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        .amount-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .amount-btn {
+            background: #1f2937;
+            border: 2px solid #374151;
+            color: white;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 22px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .amount-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(239, 68, 68, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s;
+        }
+
+        .amount-btn:hover {
+            transform: translateY(-2px);
+            border-color: #ef4444;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        .amount-btn:hover::before {
+            width: 100%;
+            height: 100%;
+        }
+
+        .amount-btn.selected {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            border-color: #ef4444;
+            box-shadow: 0 4px 16px rgba(239, 68, 68, 0.4);
+            transform: scale(1.05);
+        }
+
+        .custom-amount {
+            margin-top: 16px;
+        }
+
+        .custom-amount label {
+            display: block;
+            color: #9ca3af;
+            font-size: 13px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .custom-input {
+            width: 100%;
+            background: #1f2937;
+            border: 2px solid #374151;
+            border-radius: 12px;
+            padding: 14px 16px;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .custom-input:focus {
+            outline: none;
+            border-color: #ef4444;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+        }
+
+        .generate-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            border: none;
+            color: white;
+            padding: 18px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3);
+        }
+
+        .generate-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+        }
+
+        .generate-btn:active {
+            transform: translateY(0);
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .pix-section {
+            display: none;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .pix-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .qr-container {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .qr-code {
+            max-width: 280px;
+            width: 100%;
+            height: auto;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .pix-code {
+            background: #1f2937;
+            border: 2px solid #374151;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .pix-code-text {
+            color: #9ca3af;
+            font-size: 12px;
+            word-break: break-all;
+            line-height: 1.6;
+            font-family: 'Courier New', monospace;
+        }
+
+        .copy-btn {
+            width: 100%;
+            background: #1f2937;
+            border: 2px solid #ef4444;
+            color: #ef4444;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .copy-btn:hover {
+            background: #ef4444;
+            color: white;
+        }
+
+        .copy-btn.copied {
+            background: #10b981;
+            border-color: #10b981;
+            color: white;
+        }
+
+        .status {
+            text-align: center;
+            padding: 16px;
+            border-radius: 12px;
+            margin-top: 24px;
+            font-weight: 600;
+        }
+
+        .status.pending {
+            background: rgba(251, 191, 36, 0.1);
+            color: #fbbf24;
+        }
+
+        .status.completed {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+
+        .status.failed {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 2px solid #ef4444;
+            border-radius: 12px;
+            padding: 16px;
+            color: #ef4444;
+            margin-top: 16px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .transaction-id {
+            background: #1f2937;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            font-size: 12px;
+            color: #9ca3af;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+        }
+
+        @media (max-width: 480px) {
+            .amount-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .header h1 {
+                font-size: 36px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <button class="close-btn" onclick="closeCheckout()">×</button>
+            <h1>GERADOR PIX</h1>
+            <p>PUSHIN PAY - KIVORA</p>
+        </div>
+
+        <div class="content">
+            <div id="amountSection">
+                <div class="amount-selector">
+                    <h3>Selecione o valor</h3>
+                    <div class="amount-grid">
+                        <button class="amount-btn" data-amount="10">10</button>
+                        <button class="amount-btn" data-amount="15">15</button>
+                        <button class="amount-btn" data-amount="20">20</button>
+                        <button class="amount-btn" data-amount="25">25</button>
+                        <button class="amount-btn" data-amount="30">30</button>
+                        <button class="amount-btn" data-amount="35">35</button>
+                        <button class="amount-btn" data-amount="40">40</button>
+                        <button class="amount-btn" data-amount="45">45</button>
+                        <button class="amount-btn" data-amount="50">50</button>
+                    </div>
+
+                    <div class="custom-amount">
+                        <label for="customAmount">Ou digite um valor personalizado:</label>
+                        <input 
+                            type="number" 
+                            id="customAmount" 
+                            class="custom-input" 
+                            placeholder="25,00"
+                            step="0.01"
+                            min="0.01"
+                        >
+                    </div>
+                </div>
+
+                <button class="generate-btn" id="generateBtn" onclick="generatePix()">
+                    Gerar PIX
+                </button>
+            </div>
+
+            <div id="pixSection" class="pix-section">
+                <div class="transaction-id" id="transactionId"></div>
+
+                <div class="qr-container">
+                    <img id="qrCode" class="qr-code" alt="QR Code PIX">
+                </div>
+
+                <div class="pix-code">
+                    <p class="pix-code-text" id="pixCodeText"></p>
+                </div>
+
+                <button class="copy-btn" id="copyBtn" onclick="copyPixCode()">
+                    <span>📋</span>
+                    <span id="copyBtnText">COPIAR CHAVE</span>
+                </button>
+
+                <div id="statusDiv" class="status pending">
+                    <span id="statusText">Aguardando pagamento...</span>
+                </div>
+
+                <button class="generate-btn" onclick="resetCheckout()" style="margin-top: 24px;">
+                    Gerar Novo PIX
+                </button>
+            </div>
+
+            <div id="errorDiv" style="display: none;" class="error-message"></div>
+        </div>
+    </div>
+
+    <script>
+        let selectedAmount = null;
+        let currentPixCode = null;
+        let currentTransactionId = null;
+        let paymentCheckInterval = null;
+
+        // Seleção de valor
+        document.querySelectorAll('.amount-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('selected'));
+                this.classList.add('selected');
+                selectedAmount = parseFloat(this.dataset.amount);
+                document.getElementById('customAmount').value = '';
+            });
+        });
+
+        document.getElementById('customAmount').addEventListener('input', function() {
+            document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('selected'));
+            selectedAmount = parseFloat(this.value) || null;
+        });
+
+        // Gerar PIX
+        async function generatePix() {
+            const amount = selectedAmount || parseFloat(document.getElementById('customAmount').value);
+
+            if (!amount || amount <= 0) {
+                showError('Por favor, selecione ou digite um valor válido');
+                return;
+            }
+
+            const btn = document.getElementById('generateBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Gerando PIX...';
+
+            try {
+                const response = await fetch('/api/create-pix', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        amount: amount,
+                        client: {
+                            name: 'Cliente',
+                            email: 'cliente@exemplo.com',
+                            phone: '11999999999'
+                        }
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.pix) {
+                    currentTransactionId = data.transactionId;
+                    currentPixCode = data.pix.qrCode;
+
+                    const qrCodeImage = data.pix.image || 
+                                      data.pix.base64 ? `data:image/png;base64,${data.pix.base64}` :
+                                      `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(data.pix.qrCode)}`;
+
+                    displayPixCode(data.pix.qrCode, qrCodeImage);
+                    startPaymentCheck();
+                } else {
+                    throw new Error(data.error || 'Erro ao gerar PIX');
+                }
+
+            } catch (error) {
+                console.error('Erro:', error);
+                showError(error.message || 'Erro ao gerar PIX. Tente novamente.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Gerar PIX';
+            }
+        }
+
+        function displayPixCode(pixCode, qrCodeImage) {
+            document.getElementById('amountSection').style.display = 'none';
+            document.getElementById('pixSection').classList.add('active');
+            document.getElementById('pixCodeText').textContent = pixCode;
+            document.getElementById('qrCode').src = qrCodeImage;
+            
+            if (currentTransactionId) {
+                document.getElementById('transactionId').textContent = `ID: ${currentTransactionId}`;
+            }
+        }
+
+        function copyPixCode() {
+            const pixCode = document.getElementById('pixCodeText').textContent;
+            
+            navigator.clipboard.writeText(pixCode).then(() => {
+                const btn = document.getElementById('copyBtn');
+                const btnText = document.getElementById('copyBtnText');
+                
+                btn.classList.add('copied');
+                btnText.textContent = 'COPIADO!';
+                
+                setTimeout(() => {
+                    btn.classList.remove('copied');
+                    btnText.textContent = 'COPIAR CHAVE';
+                }, 2000);
+            }).catch(err => {
+                console.error('Erro ao copiar:', err);
+                showError('Erro ao copiar código PIX');
+            });
+        }
+
+        function startPaymentCheck() {
+            if (paymentCheckInterval) {
+                clearInterval(paymentCheckInterval);
+            }
+            paymentCheckInterval = setInterval(checkPaymentStatus, 5000);
+        }
+
+        async function checkPaymentStatus() {
+            if (!currentTransactionId) {
+                clearInterval(paymentCheckInterval);
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/check-payment/${currentTransactionId}`);
+                const data = await response.json();
+
+                if (data.success && data.transaction) {
+                    updatePaymentStatus(data.transaction.status);
+
+                    if (data.transaction.status === 'COMPLETED' || data.transaction.status === 'FAILED') {
+                        clearInterval(paymentCheckInterval);
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao verificar status:', error);
+            }
+        }
+
+        function updatePaymentStatus(status) {
+            const statusDiv = document.getElementById('statusDiv');
+            const statusText = document.getElementById('statusText');
+
+            statusDiv.className = 'status';
+
+            switch (status) {
+                case 'COMPLETED':
+                    statusDiv.classList.add('completed');
+                    statusText.textContent = '✓ Pagamento confirmado!';
+                    break;
+                case 'PENDING':
+                    statusDiv.classList.add('pending');
+                    statusText.textContent = 'Aguardando pagamento...';
+                    break;
+                case 'FAILED':
+                    statusDiv.classList.add('failed');
+                    statusText.textContent = '✗ Pagamento falhou';
+                    break;
+                default:
+                    statusDiv.classList.add('pending');
+                    statusText.textContent = `Status: ${status}`;
+            }
+        }
+
+        function resetCheckout() {
+            if (paymentCheckInterval) {
+                clearInterval(paymentCheckInterval);
+            }
+
+            document.getElementById('pixSection').classList.remove('active');
+            document.getElementById('amountSection').style.display = 'block';
+            document.getElementById('customAmount').value = '';
+            document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('selected'));
+            
+            selectedAmount = null;
+            currentPixCode = null;
+            currentTransactionId = null;
+
+            const statusDiv = document.getElementById('statusDiv');
+            statusDiv.className = 'status pending';
+            document.getElementById('statusText').textContent = 'Aguardando pagamento...';
+        }
+
+        function closeCheckout() {
+            if (confirm('Deseja realmente fechar o checkout?')) {
+                if (paymentCheckInterval) {
+                    clearInterval(paymentCheckInterval);
+                }
+                window.close();
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorDiv');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        window.addEventListener('beforeunload', () => {
+            if (paymentCheckInterval) {
+                clearInterval(paymentCheckInterval);
+            }
+        });
+    </script>
+</body>
+</html>

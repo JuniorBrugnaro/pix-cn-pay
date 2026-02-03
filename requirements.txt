@@ -1,0 +1,6 @@
+Flask==3.0.0
+# Atualizações mínimas recomendadas por segurança
+Flask-Cors>=4.0.2
+requests>=2.32.4
+gunicorn>=22.0.0
+python-dotenv==1.0.0
