@@ -3,10 +3,15 @@ Aplicação Flask - Checkout PIX CN Pay
 Deploy: Render.com
 """
 
+from dotenv import load_dotenv
+import os
+
+# Carregar variáveis de ambiente do arquivo .env
+load_dotenv()
+
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_cors import CORS
 import requests
-import os
 from datetime import datetime
 import logging
 
