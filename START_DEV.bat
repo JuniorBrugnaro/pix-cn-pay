@@ -61,7 +61,7 @@ call .venv\Scripts\activate.bat
 python --version
 
 REM Iniciar ngrok em janela separada
-echo [INFO] Iniciando ngrok em outra janela...
+echo [INFO] Iniciando ngrok na porta 5000 em outra janela...
 start "ngrok - PIX CNPAY" cmd /k ngrok http 5000
 
 REM Aguardar ngrok inicializar (5 segundos)
