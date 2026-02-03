@@ -52,14 +52,8 @@ else:
 
 # Validação de configuração crítica
 if not config.CNPAY_PUBLIC_KEY or not config.CNPAY_SECRET_KEY:
-    if config.DEBUG:
-        logger.warning('CNPAY keys not set — usando chaves de exemplo em DEBUG. Não use em produção.')
-        # chaves exemplo somente para testes locais
-        config.CNPAY_PUBLIC_KEY = config.CNPAY_PUBLIC_KEY or 'financeiro_moqjrint4j9xhzzt'
-        config.CNPAY_SECRET_KEY = config.CNPAY_SECRET_KEY or 'c3qfmxlk7iw147u7g5b47l2u7eghbd6vi3sgsb908afhrcvh2tqsksoxi7zyr75e'
-    else:
-        logger.error('CNPAY_PUBLIC_KEY e CNPAY_SECRET_KEY não encontradas. Abortando inicialização.')
-        raise RuntimeError('Missing CNPAY_PUBLIC_KEY or CNPAY_SECRET_KEY environment variables')
+    logger.error('❌ CNPAY_PUBLIC_KEY e CNPAY_SECRET_KEY não encontradas. Abortando inicialização.')
+    raise RuntimeError('Missing CNPAY_PUBLIC_KEY or CNPAY_SECRET_KEY environment variables')
 
 # ==================== HELPERS ====================
 def get_cnpay_headers():
@@ -97,44 +91,59 @@ def health():
 @app.route('/api/create-pix', methods=['POST'])
 def create_pix():
     """
-    Criar cobrança PIX
-    Body: { "amount": 25.00, "client": {...}, "products": [...] }
+    Criar cobrança PIX conforme CN Pay API
+    POST /gateway/pix/receive (autenticado)
+    Campos obrigatórios: identifier, amount
     """
     try:
         data = request.get_json(silent=True)
         if not data:
             return jsonify({'success': False, 'error': 'Payload JSON inválido'}), 400
 
-        # Validar dados
+        # VALIDAR AMOUNT (obrigatório conforme docs CN Pay)
         amount = data.get('amount')
         try:
             amount = float(amount)
         except (TypeError, ValueError):
-            return jsonify({'success': False, 'error': 'Valor inválido'}), 400
+            return jsonify({'success': False, 'error': 'Campo "amount" obrigatório e deve ser numérico'}), 400
 
         if amount <= 0:
-            return jsonify({'success': False, 'error': 'Valor inválido'}), 400
+            return jsonify({'success': False, 'error': 'Amount deve ser maior que zero'}), 400
         
-        # Gerar identificador único
-        identifier = generate_identifier()
+        # VALIDAR/GERAR IDENTIFIER (obrigatório conforme docs CN Pay)
+        identifier = data.get('identifier') or generate_identifier()
+        if not identifier or not isinstance(identifier, str) or len(identifier) < 1:
+            return jsonify({'success': False, 'error': 'Identifier inválido - deve ser string única'}), 400
         
-        # Preparar payload para CN Pay
+        # Preparar payload para CN Pay - conforme docs: /gateway/pix/receive
+        # Campos obrigatórios: identifier, amount
         payload = {
             'identifier': identifier,
-            'amount': float(amount),
-            'client': data.get('client', {
-                'name': 'Cliente',
-                'email': 'cliente@exemplo.com',
-                'phone': '11999999999'
-            }),
-            'products': data.get('products', [{
-                'name': 'Pushin Pay - Kivora',
-                'price': float(amount),
-                'quantity': 1
-            }])
+            'amount': float(amount)
         }
         
-        # Adicionar webhook URL se configurada
+        # Campos opcionais de cliente
+        if data.get('client'):
+            payload['client'] = data['client']
+        
+        # Campos opcionais de produtos
+        if data.get('products'):
+            payload['products'] = data['products']
+        
+        # Campos opcionais de taxas
+        if data.get('shippingFee') is not None:
+            try:
+                payload['shippingFee'] = float(data['shippingFee'])
+            except (TypeError, ValueError):
+                pass
+        
+        if data.get('extraFee') is not None:
+            try:
+                payload['extraFee'] = float(data['extraFee'])
+            except (TypeError, ValueError):
+                pass
+        
+        # Adicionar webhook URL se configurada (callbackUrl conforme docs)
         if config.WEBHOOK_URL:
             payload['callbackUrl'] = config.WEBHOOK_URL
         
@@ -191,24 +200,35 @@ def create_pix():
 @app.route('/api/check-payment/<transaction_id>', methods=['GET'])
 def check_payment(transaction_id):
     """
-    Verificar status do pagamento
+    Verificar status do pagamento conforme CN Pay API
+    GET /gateway/transactions?id=<transaction_id>&clientIdentifier=<client_identifier>
     """
     try:
-        logger.info(f"Verificando status - Transaction ID: {transaction_id}")
+        client_identifier = request.args.get('clientIdentifier')
+        
+        logger.info(f"📋 Verificando status - Transaction ID: {transaction_id}")
+        
+        # Preparar parâmetros conforme docs CN Pay
+        params = {'id': transaction_id}
+        if client_identifier:
+            params['clientIdentifier'] = client_identifier
         
         response = requests.get(
             f"{config.CNPAY_API_URL}/gateway/transactions",
-            params={'id': transaction_id},
+            params=params,
             headers=get_cnpay_headers(),
             timeout=30
         )
         
         if response.status_code == 200:
             data = response.json()
+            logger.info(f"✅ Transação encontrada - Status: {data.get('status')}")
+            
             return jsonify({
                 'success': True,
                 'transaction': {
                     'id': data.get('id'),
+                    'clientIdentifier': data.get('clientIdentifier'),
                     'status': data.get('status'),
                     'amount': data.get('amount'),
                     'paymentMethod': data.get('paymentMethod'),
@@ -218,13 +238,14 @@ def check_payment(transaction_id):
                 }
             })
         else:
+            logger.warning(f"⚠️ Transação não encontrada - ID: {transaction_id}")
             return jsonify({
                 'success': False,
                 'error': 'Transação não encontrada'
             }), 404
             
     except Exception as e:
-        logger.error(f"Erro ao verificar pagamento: {str(e)}")
+        logger.error(f"❌ Erro ao verificar pagamento: {str(e)}")
         payload = {'success': False, 'error': 'Erro interno do servidor'}
         if config.DEBUG:
             payload['details'] = str(e)
@@ -235,11 +256,13 @@ def check_payment(transaction_id):
 def webhook():
     """
     Receber notificações de pagamento da CN Pay
+    Validar token conforme documentação CN Pay
+    Eventos: TRANSACTION_PAID, TRANSACTION_CREATED, TRANSACTION_CANCELED, TRANSACTION_REFUNDED
     """
     try:
         data = request.get_json(silent=True)
         if not data:
-            logger.warning('Webhook: payload vazio ou inválido')
+            logger.warning('❌ Webhook: payload vazio ou inválido')
             return jsonify({'success': False, 'error': 'Payload inválido'}), 400
 
         event = data.get('event')
@@ -247,45 +270,57 @@ def webhook():
         transaction = data.get('transaction', {})
         client = data.get('client', {})
         
-        logger.info("=" * 60)
-        logger.info(f"📩 Webhook recebido: {event}")
-        logger.info("=" * 60)
-        logger.info(f"Token: {'<redacted>' if token else '(none)'}")
-        logger.info(f"Transaction ID: {transaction.get('id')}")
-        logger.info(f"Status: {transaction.get('status')}")
-        logger.info(f"Valor: R$ {transaction.get('amount')}")
-        logger.info(f"Cliente: {client.get('name')} - {client.get('email')}")
-        logger.info("=" * 60)
-
-        # Validar token do webhook quando configurado
+        # Validar token do webhook conforme docs CN Pay
+        # O token é gerado pelo CN Pay e deve ser validado
+        if not token:
+            logger.warning('⚠️ Webhook sem token recebido')
+        
+        # Se WEBHOOK_SECRET configurada (verificação adicional), validar
         if config.WEBHOOK_SECRET:
             if not token or token != config.WEBHOOK_SECRET:
-                logger.warning('Webhook token inválido')
+                logger.error('🔐 Webhook token INVÁLIDO - rejeitando requisição')
                 return jsonify({'success': False, 'error': 'Invalid webhook token'}), 401
         
-        # Processar eventos
+        logger.info("=" * 70)
+        logger.info(f"📩 Webhook recebido: {event}")
+        logger.info("=" * 70)
+        logger.info(f"Transaction ID: {transaction.get('id')}")
+        logger.info(f"Identifier: {transaction.get('identifier')}")
+        logger.info(f"Status: {transaction.get('status')}")
+        logger.info(f"Valor: R$ {transaction.get('amount')}")
+        logger.info(f"Método: {transaction.get('paymentMethod')}")
+        logger.info(f"Cliente: {client.get('name')} - {client.get('email')}")
+        logger.info("=" * 70)
+
+        # Processar eventos conforme documentação CN Pay
         if event == 'TRANSACTION_PAID':
             logger.info("💰 PAGAMENTO CONFIRMADO!")
             # Aqui você deve:
-            # - Atualizar banco de dados
-            # - Liberar produto/serviço
+            # - Atualizar banco de dados com status PAID
+            # - Liberar produto/serviço para o cliente
             # - Enviar email de confirmação
-            # - Disparar automações
+            # - Disparar automações (webhooks internos, etc.)
             
         elif event == 'TRANSACTION_CREATED':
-            logger.info("✅ Transação criada")
+            logger.info("✅ Transação criada na CN Pay")
+            # Cobrança foi criada com sucesso
             
         elif event == 'TRANSACTION_CANCELED':
             logger.info("❌ Transação cancelada")
+            # Cobrança foi cancelada pelo sistema ou cliente
             
         elif event == 'TRANSACTION_REFUNDED':
             logger.info("↩️ Transação estornada")
+            # Pagamento foi reembolsado
             # Aqui você deve:
             # - Revogar acesso ao produto
             # - Atualizar banco de dados
             # - Enviar email de estorno
         
-        # Retornar sucesso (obrigatório)
+        else:
+            logger.warning(f"⚠️ Evento desconhecido: {event}")
+        
+        # Retornar sucesso (obrigatório para CN Pay não reenviar)
         return jsonify({
             'success': True,
             'message': 'Webhook processado com sucesso'
