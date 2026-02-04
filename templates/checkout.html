@@ -533,7 +533,8 @@
                 document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('selected'));
                 this.classList.add('selected');
                 selectedAmount = parseFloat(this.dataset.amount);
-                document.getElementById('customAmount').value = '';
+                // Mostrar o valor também no campo de valor personalizado
+                document.getElementById('customAmount').value = this.dataset.amount;
             });
         });
 
