@@ -282,75 +282,6 @@
             font-family: 'Courier New', monospace;
         }
 
-        .pix-code-label {
-            color: #ffffff;
-            font-size: 14px;
-            font-weight: 700;
-            margin: 0;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        
-        .pix-copy-field .pix-code-label {
-            color: #ffffff;
-            font-size: 15px;
-            margin-bottom: 8px;
-        }
-
-        .pix-copy-field {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            border: 2px solid #10b981;
-            border-radius: 12px;
-            padding: 20px;
-            margin: 20px 0;
-            display: flex !important;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .copy-code-container {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 16px;
-            border-radius: 8px;
-        }
-
-        .pix-copy-code-text {
-            flex: 1;
-            color: #ffffff;
-            font-size: 14px;
-            word-break: break-all;
-            line-height: 1.6;
-            font-family: 'Courier New', monospace;
-            margin: 0;
-            font-weight: 600;
-        }
-
-        .copy-code-btn {
-            background: #ffffff;
-            border: none;
-            color: #059669;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            white-space: nowrap;
-            transition: all 0.3s ease;
-            flex-shrink: 0;
-        }
-
-        .copy-code-btn:hover {
-            background: #f0f9ff;
-            transform: scale(1.05);
-        }
-
-        .copy-code-btn:active {
-            transform: scale(0.95);
-        }
-
         .copy-btn {
             width: 100%;
             background: #1f2937;
@@ -486,7 +417,7 @@
                     </div>
                 </div>
 
-                <button class="generate-btn" id="generateBtn" onclick="generatePix(); return false;">
+                <button class="generate-btn" id="generateBtn" onclick="generatePix()">
                     Gerar PIX
                 </button>
             </div>
@@ -495,18 +426,17 @@
                 <div class="transaction-id" id="transactionId"></div>
 
                 <div class="qr-container">
-                    <img id="qrCode" class="qr-code" alt="QR Code PIX" style="width: 100%; max-width: 300px;">
+                    <img id="qrCode" class="qr-code" alt="QR Code PIX">
                 </div>
 
-                <div id="pixCopyCodeField" class="pix-copy-field">
-                    <p class="pix-code-label">Código PIX para copiar:</p>
-                    <div class="copy-code-container">
-                        <p class="pix-copy-code-text" id="pixCopyCodeText"></p>
-                        <button class="copy-code-btn" onclick="copyPixCode(event)" type="button">
-                            COPIAR
-                        </button>
-                    </div>
+                <div class="pix-code">
+                    <p class="pix-code-text" id="pixCodeText"></p>
                 </div>
+
+                <button class="copy-btn" id="copyBtn" onclick="copyPixCode()">
+                    <span>📋</span>
+                    <span id="copyBtnText">COPIAR CHAVE</span>
+                </button>
 
                 <div id="statusDiv" class="status pending">
                     <span id="statusText">Aguardando pagamento...</span>
@@ -566,7 +496,6 @@
                         client: {
                             name: 'Cliente',
                             email: 'cliente@exemplo.com',
-                            document: '00000000000000',
                             phone: '11999999999'
                         }
                     })
@@ -574,38 +503,15 @@
 
                 const data = await response.json();
 
-                console.log('Resposta da API completa:', data);
-                console.log('Raw response:', data.raw_response);
-
-                if (data.success) {
-                    const pix = data.pix || {};
-                    console.log('PIX data:', pix);
-                    
-                    // Determinar a imagem do QR Code
-                    let qrImage = null;
-                    if (pix.base64) {
-                        qrImage = `data:image/png;base64,${pix.base64}`;
-                        console.log('Usando base64');
-                    } else if (pix.image) {
-                        qrImage = pix.image;
-                        console.log('Usando image URL');
-                    } else if (pix.qrCode) {
-                        qrImage = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(pix.qrCode)}`;
-                        console.log('Gerando QR code a partir do texto');
-                    } else if (pix.brCode) {
-                        qrImage = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(pix.brCode)}`;
-                        console.log('Gerando QR code a partir do brCode');
-                    }
-                    
-                    if (!qrImage) {
-                        console.error('Nenhuma imagem disponível:', pix);
-                        throw new Error('Nenhuma imagem de QR Code encontrada. Dados: ' + JSON.stringify(pix));
-                    }
-                    
+                if (data.success && data.pix) {
                     currentTransactionId = data.transactionId;
-                    currentPixCode = pix.code || pix.qrCode || pix.brCode || 'PIX gerado';
+                    currentPixCode = data.pix.qrCode;
 
-                    displayPixCode(currentPixCode, qrImage, pix.code);
+                    const qrCodeImage = data.pix.image || 
+                                      data.pix.base64 ? `data:image/png;base64,${data.pix.base64}` :
+                                      `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(data.pix.qrCode)}`;
+
+                    displayPixCode(data.pix.qrCode, qrCodeImage);
                     startPaymentCheck();
                 } else {
                     throw new Error(data.error || 'Erro ao gerar PIX');
@@ -620,58 +526,29 @@
             }
         }
 
-        function displayPixCode(pixCode, qrCodeImage, pixCopyCode) {
+        function displayPixCode(pixCode, qrCodeImage) {
             document.getElementById('amountSection').style.display = 'none';
             document.getElementById('pixSection').classList.add('active');
-            
-            // Usar o código de cópia se disponível, senão usar pixCode
-            const codigoExibir = pixCopyCode || pixCode;
-            
-            if (codigoExibir) {
-                document.getElementById('pixCopyCodeField').style.display = 'flex';
-                document.getElementById('pixCopyCodeText').textContent = codigoExibir;
-            } else {
-                document.getElementById('pixCopyCodeField').style.display = 'block';
-                document.getElementById('pixCopyCodeText').textContent = 'Código não disponível';
-            }
-            
-            // Carregar imagem do QR code
-            if (qrCodeImage) {
-                document.getElementById('qrCode').src = qrCodeImage;
-                document.getElementById('qrCode').style.display = 'block';
-            }
+            document.getElementById('pixCodeText').textContent = pixCode;
+            document.getElementById('qrCode').src = qrCodeImage;
             
             if (currentTransactionId) {
                 document.getElementById('transactionId').textContent = `ID: ${currentTransactionId}`;
             }
         }
 
-        function copyPixCode(e) {
-            e = e || event;
-            const codigoElement = document.getElementById('pixCopyCodeText');
-            const codigo = codigoElement.textContent;
+        function copyPixCode() {
+            const pixCode = document.getElementById('pixCodeText').textContent;
             
-            if (!codigo) {
-                alert('Nenhum código disponível para copiar');
-                return;
-            }
-            
-            navigator.clipboard.writeText(codigo).then(() => {
-                const btn = e.target.closest('.copy-code-btn') || e.target;
-                const originalText = btn.textContent;
+            navigator.clipboard.writeText(pixCode).then(() => {
+                const btn = document.getElementById('copyBtn');
+                const btnText = document.getElementById('copyBtnText');
                 
-                btn.textContent = '✓ COPIADO!';
-                btn.style.background = '#059669';
+                btn.classList.add('copied');
+                btnText.textContent = 'COPIADO!';
                 
                 setTimeout(() => {
-                    btn.textContent = originalText;
-                    btn.style.background = '#ffffff';
-                }, 2000);
-            }).catch(err => {
-                console.error('Erro ao copiar:', err);
-                alert('Erro ao copiar código');
-            });
-        }
+                    btn.classList.remove('copied');
                     btnText.textContent = 'COPIAR CHAVE';
                 }, 2000);
             }).catch(err => {

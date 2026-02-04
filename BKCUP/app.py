@@ -3,15 +3,10 @@ Aplicação Flask - Checkout PIX CN Pay
 Deploy: Render.com
 """
 
-from dotenv import load_dotenv
-import os
-
-# Carregar variáveis de ambiente do arquivo .env
-load_dotenv()
-
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_cors import CORS
 import requests
+import os
 from datetime import datetime
 import logging
 
@@ -127,20 +122,9 @@ def create_pix():
             'amount': float(amount)
         }
         
-        # Campos obrigatórios de cliente (CN Pay requer)
+        # Campos opcionais de cliente
         if data.get('client'):
-            client = data['client']
-            # Validar campos obrigatórios do cliente
-            if all(k in client for k in ['name', 'email', 'document', 'phone']):
-                payload['client'] = {
-                    'name': client.get('name'),
-                    'email': client.get('email'),
-                    'document': client.get('document'),
-                    'phone': client.get('phone')
-                }
-            else:
-                logger.warning(f"Cliente incompleto: {client}")
-                payload['client'] = client  # Enviar como está e deixar CN Pay retornar erro
+            payload['client'] = data['client']
         
         # Campos opcionais de produtos
         if data.get('products'):
@@ -175,19 +159,8 @@ def create_pix():
         
         response_data = response.json()
         
-        logger.info(f"Resposta CN Pay (status {response.status_code}): {response_data}")
-        
-        if response.status_code == 201 or (response.status_code == 200 and response_data.get('status') in ['OK', 'PENDING']):
+        if response.status_code == 201 and response_data.get('status') in ['OK', 'PENDING']:
             logger.info(f"PIX criado com sucesso - Transaction ID: {response_data.get('transactionId')}")
-            
-            # CN Pay pode retornar pix em diferentes estruturas
-            pix_data = response_data.get('pix', {})
-            if isinstance(pix_data, str):
-                # Se for string, é o código de barras
-                pix_data = {'qrCode': pix_data}
-            
-            # Extrair code (código PIX que o cliente copia)
-            pix_code = pix_data.get('code') or response_data.get('code')
             
             # Retornar dados do PIX
             return jsonify({
@@ -196,15 +169,12 @@ def create_pix():
                 'identifier': identifier,
                 'status': response_data.get('status'),
                 'pix': {
-                    'code': pix_code,  # Código PIX para copiar
-                    'qrCode': pix_data.get('qrCode') or response_data.get('qrCode') or response_data.get('brCode'),
-                    'image': pix_data.get('image') or response_data.get('image'),
-                    'base64': pix_data.get('base64') or response_data.get('base64'),
-                    'brCode': pix_data.get('brCode') or response_data.get('brCode')
+                    'qrCode': response_data.get('pix', {}).get('qrCode'),
+                    'image': response_data.get('pix', {}).get('image'),
+                    'base64': response_data.get('pix', {}).get('base64')
                 },
                 'order': response_data.get('order', {}),
-                'fee': response_data.get('fee', 0),
-                'raw_response': response_data  # Debug
+                'fee': response_data.get('fee', 0)
             })
         else:
             logger.error(f"Erro ao criar PIX: {response_data}")

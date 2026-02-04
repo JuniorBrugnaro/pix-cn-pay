@@ -4,10 +4,10 @@ REM Script para iniciar PIX CNPAY com ngrok em localhost
 REM ============================================================
 REM
 REM Este script:
-REM 1. Ativa o virtual environment
-REM 2. Inicia o servidor Flask
-REM 3. Inicia ngrok para tunelar localhost para internet
-REM 4. Abre o browser em localhost:5000
+REM 1. Verifica pré-requisitos (ngrok, venv)
+REM 2. Inicia ngrok na porta 5000
+REM 3. Inicia Flask (carrega .env automaticamente)
+REM 4. Abre browser em localhost:5000
 REM
 REM ============================================================
 
@@ -15,7 +15,7 @@ setlocal enabledelayedexpansion
 
 REM Cores e estilos
 color 0A
-title PIX CNPAY - Desenvolvimento Local com ngrok
+title PIX CNPAY - Dev Server com ngrok
 
 REM Definir diretório
 set SCRIPT_DIR=%~dp0
@@ -23,60 +23,130 @@ cd /d "%SCRIPT_DIR%"
 
 echo.
 echo ============================================================
-echo   PIX CNPAY - Inicializando...
+echo   PIX CNPAY - Inicializando ambiente de desenvolvimento
 echo ============================================================
 echo.
 
-REM Verificar se ngrok está instalado
+REM ============================================================
+REM 1. VERIFICAR PRÉ-REQUISITOS
+REM ============================================================
+
+REM Verificar ngrok
 ngrok --version >nul 2>&1
 if errorlevel 1 (
+    color 0C
     echo [ERRO] ngrok nao encontrado!
     echo.
-    echo Instale ngrok:
+    echo Para instalar:
     echo   1. Visite: https://ngrok.com/download
     echo   2. Baixe para Windows
-    echo   3. Extraia ngrok.exe para este diretorio
+    echo   3. Extraia ngrok.exe neste diretorio: %SCRIPT_DIR%
     echo   4. Execute novamente este script
     echo.
     pause
     exit /b 1
 )
-
 echo [OK] ngrok encontrado
+color 0A
+
+REM Verificar virtual env
+if not exist ".venv\Scripts\activate.bat" (
+    color 0C
+    echo [ERRO] Virtual environment nao encontrado!
+    echo.
+    echo Para criar:
+    echo   python -m venv .venv
+    echo   .venv\Scripts\activate
+    echo   pip install -r requirements.txt
+    echo.
+    pause
+    exit /b 1
+)
+echo [OK] Virtual environment encontrado
 echo.
 
-REM Verificar se virtual env existe
-if not exist ".venv\Scripts\activate.bat" (
-    echo [ERRO] Virtual environment nao encontrado!
-    echo Crie com: python -m venv .venv
+REM Verificar .env
+if not exist ".env" (
+    color 0C
+    echo [ERRO] Arquivo .env nao encontrado!
+    echo.
+    echo Crie um .env com suas credenciais CN Pay
+    echo.
+    pause
+    exit /b 1
+)
+echo [OK] Arquivo .env encontrado
+echo.
+
+REM ============================================================
+REM 2. ATIVAR VENV
+REM ============================================================
+call .venv\Scripts\activate.bat
+
+REM Verificar Python
+python --version >nul 2>&1
+if errorlevel 1 (
+    color 0C
+    echo [ERRO] Python nao encontrado no venv!
     pause
     exit /b 1
 )
 
-echo [OK] Virtual environment encontrado
+echo [OK] Python ativado
 echo.
 
-REM Ativar venv e verificar
-call .venv\Scripts\activate.bat
-python --version
+REM ============================================================
+REM 3. INICIAR NGROK
+REM ============================================================
+color 0E
+echo [INFO] Iniciando ngrok na porta 5000...
+echo.
+start "ngrok - PIX CNPAY" cmd /k "ngrok http 5000"
 
-REM Iniciar ngrok em janela separada
-echo [INFO] Iniciando ngrok na porta 5000 em outra janela...
-start "ngrok - PIX CNPAY" cmd /k ngrok http 5000
+REM Aguardar ngrok inicializar
+echo [INFO] Aguardando ngrok inicializar...
+timeout /t 4 /nobreak
 
-REM Aguardar ngrok inicializar (5 segundos)
-timeout /t 5 /nobreak
+echo.
 
-REM Iniciar Flask em janela separada
-echo [INFO] Iniciando Flask em outra janela...
-start "Flask - PIX CNPAY" cmd /k python app.py
+REM ============================================================
+REM 4. INICIAR FLASK
+REM ============================================================
+color 0A
+echo [INFO] Iniciando Flask Server...
+echo.
+start "Flask - PIX CNPAY" cmd /k "python app.py"
 
-REM Aguardar Flask inicializar (3 segundos)
+REM Aguardar Flask inicializar
+echo [INFO] Aguardando Flask inicializar...
 timeout /t 3 /nobreak
 
-REM Abrir browser
-echo [INFO] Abrindo browser em localhost:5000...
+REM ============================================================
+REM 5. ABRIR BROWSER
+REM ============================================================
+echo [INFO] Abrindo browser...
 start http://localhost:5000
+
+echo.
+echo ============================================================
+echo   STATUS: EXECUTANDO!
+echo ============================================================
+echo.
+echo URLS DISPONIVEIS:
+echo   Local:         http://localhost:5000
+echo   ngrok:         Verifique na janela do ngrok (https://...)
+echo   ngrok Dashboard: http://127.0.0.1:4040
+echo.
+echo PROXIMOS PASSOS:
+echo   1. Copie a URL do ngrok (janela ngrok)
+echo   2. Configure em CN Pay Dashboard:
+echo      Integraciones ^> Webhooks
+echo   3. URL do webhook: https://xxxxx.ngrok-free.app/webhook
+echo.
+echo PARA PARAR:
+echo   Feche as janelas do ngrok e Flask
+echo.
+pause
 
 echo.
 echo ============================================================

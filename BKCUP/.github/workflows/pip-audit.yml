@@ -1,0 +1,51 @@
+name: Dependency security audit (pip-audit)
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    - cron: '0 3 * * 1' # semanal às segundas às 03:00 UTC
+
+jobs:
+  pip-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install pip-audit
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit
+
+      - name: Run pip-audit
+        id: audit
+        run: |
+          pip-audit -r requirements.txt --format json > pip_audit_results.json || true
+          cat pip_audit_results.json
+
+      - name: Fail on findings
+        if: steps.audit.outcome == 'success'
+        run: |
+          python - <<'PY'
+import sys, json
+data = json.load(open('pip_audit_results.json'))
+vulns = []
+for dep in data.get('dependencies', []):
+    if dep.get('vulns'):
+        vulns.append(dep)
+if vulns:
+    print('Vulnerabilities found:')
+    for d in vulns:
+        print(d['name'], d['version'])
+    sys.exit(1)
+else:
+    print('No vulnerabilities found')
+PY
