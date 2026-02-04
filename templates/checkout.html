@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Checkout PIX - Pushin Pay Kivora</title>
+    <title>Checkout PIX - CNPAY PAGAMENTOS</title>
     <style>
         * {
             margin: 0;
@@ -454,7 +454,7 @@
         <div class="header">
             <button class="close-btn" onclick="closeCheckout()">×</button>
             <h1>GERADOR PIX</h1>
-            <p>PUSHIN PAY - KIVORA</p>
+            <p>CNPAY PAGAMENTOS</p>
         </div>
 
         <div class="content">
@@ -492,7 +492,7 @@
             </div>
 
             <div id="pixSection" class="pix-section">
-                <div class="transaction-id" id="transactionId"></div>
+                <div class="transaction-id" id="transactionId" style="display: none;"></div>
 
                 <div class="qr-container">
                     <img id="qrCode" class="qr-code" alt="QR Code PIX" style="width: 100%; max-width: 300px;">
@@ -670,13 +670,6 @@
             }).catch(err => {
                 console.error('Erro ao copiar:', err);
                 alert('Erro ao copiar código');
-            });
-        }
-                    btnText.textContent = 'COPIAR CHAVE';
-                }, 2000);
-            }).catch(err => {
-                console.error('Erro ao copiar:', err);
-                showError('Erro ao copiar código PIX');
             });
         }
 
