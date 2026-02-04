@@ -233,6 +233,12 @@
             color: #6b7280;
         }
 
+        .optional {
+            color: #9ca3af;
+            font-size: 11px;
+            font-weight: 400;
+        }
+
         .custom-input:focus {
             outline: none;
             border-color: #ef4444;
@@ -494,7 +500,7 @@
         <div class="content">
             <div id="amountSection">
                 <div class="phone-input-section">
-                    <label for="clientPhone">Seu telefone:</label>
+                    <label for="clientPhone">Seu telefone: <span class="optional">(opcional)</span></label>
                     <input 
                         type="tel" 
                         id="clientPhone" 
@@ -596,11 +602,6 @@
 
             if (!amount || amount <= 0) {
                 showError('Por favor, selecione ou digite um valor válido');
-                return;
-            }
-
-            if (!phoneNumber) {
-                showError('Por favor, insira seu telefone');
                 return;
             }
 
