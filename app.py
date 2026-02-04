@@ -35,8 +35,20 @@ class Config:
     PORT = int(os.getenv('PORT', 5000))
     DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
     
-    # Webhook URL (será a URL do Render + /webhook)
-    WEBHOOK_URL = os.getenv('WEBHOOK_URL', '')
+    # Webhook URL - detecta automaticamente baseado no ambiente
+    _webhook_url = os.getenv('WEBHOOK_URL', '')
+    
+    # Se WEBHOOK_URL estiver vazia, tenta inferir do ambiente
+    if not _webhook_url:
+        # Se for Render (hostname contém 'onrender')
+        if 'RENDER' in os.environ or 'onrender' in os.getenv('HOSTNAME', '').lower():
+            _webhook_url = 'https://pix-cnpay.onrender.com/webhook'
+        else:
+            # Para desenvolvimento local
+            _webhook_url = os.getenv('WEBHOOK_URL_LOCAL', 'http://localhost:5000/webhook')
+    
+    WEBHOOK_URL = _webhook_url
+    
     # Secret opcional para validar webhooks (comparado com payload.token)
     WEBHOOK_SECRET = os.getenv('WEBHOOK_SECRET')
 
@@ -59,6 +71,12 @@ else:
 if not config.CNPAY_PUBLIC_KEY or not config.CNPAY_SECRET_KEY:
     logger.error('❌ CNPAY_PUBLIC_KEY e CNPAY_SECRET_KEY não encontradas. Abortando inicialização.')
     raise RuntimeError('Missing CNPAY_PUBLIC_KEY or CNPAY_SECRET_KEY environment variables')
+
+# Log de informações da aplicação
+logger.info(f'✅ CNPAY API configurada: {config.CNPAY_API_URL}')
+logger.info(f'✅ Webhook URL: {config.WEBHOOK_URL}')
+logger.info(f'✅ Porta: {config.PORT}')
+logger.info(f'✅ Debug Mode: {config.DEBUG}')
 
 # ==================== HELPERS ====================
 def get_cnpay_headers():
