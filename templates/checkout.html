@@ -199,46 +199,6 @@
             transition: all 0.2s;
         }
 
-        .phone-input-section {
-            margin-bottom: 24px;
-        }
-
-        .phone-input-section label {
-            display: block;
-            color: #9ca3af;
-            font-size: 13px;
-            margin-bottom: 8px;
-            font-weight: 500;
-        }
-
-        .phone-input {
-            width: 100%;
-            background: #1f2937;
-            border: 2px solid #ef4444;
-            border-radius: 12px;
-            padding: 14px 16px;
-            color: white;
-            font-size: 16px;
-            font-weight: 600;
-            transition: all 0.2s;
-        }
-
-        .phone-input:focus {
-            outline: none;
-            border-color: #10b981;
-            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
-        }
-
-        .phone-input::placeholder {
-            color: #6b7280;
-        }
-
-        .optional {
-            color: #9ca3af;
-            font-size: 11px;
-            font-weight: 400;
-        }
-
         .custom-input:focus {
             outline: none;
             border-color: #ef4444;
@@ -499,18 +459,6 @@
 
         <div class="content">
             <div id="amountSection">
-                <div class="phone-input-section">
-                    <label for="clientPhone">Seu telefone: <span class="optional">(opcional)</span></label>
-                    <input 
-                        type="tel" 
-                        id="clientPhone" 
-                        class="phone-input" 
-                        placeholder="(11) 99999-9999"
-                        pattern="[0-9\(\)\-\s]+"
-                        maxlength="15"
-                    >
-                </div>
-
                 <div class="amount-selector">
                     <h3>Selecione o valor</h3>
                     <div class="amount-grid">
@@ -598,7 +546,6 @@
         // Gerar PIX
         async function generatePix() {
             const amount = selectedAmount || parseFloat(document.getElementById('customAmount').value);
-            const phoneNumber = document.getElementById('clientPhone').value.trim();
 
             if (!amount || amount <= 0) {
                 showError('Por favor, selecione ou digite um valor válido');
@@ -621,7 +568,7 @@
                             name: 'Cliente',
                             email: 'cliente@exemplo.com',
                             document: '00000000000000',
-                            phone: phoneNumber
+                            phone: '11999999999'
                         }
                     })
                 });
